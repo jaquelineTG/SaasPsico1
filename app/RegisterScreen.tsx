@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView, Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text, TextInput, TouchableOpacity,
@@ -10,7 +9,7 @@ import {
 } from 'react-native';
 
 export default function RegisterScreen() {
-  const router = useRouter(); // reemplaza navigation
+  const router = useRouter(); 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,45 +29,64 @@ export default function RegisterScreen() {
       alert('Debes aceptar los Términos y Condiciones');
       return;
     }
-    // TODO: backend
+    router.push('/')
     alert('Registro OK (simulado)');
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+    <View style={styles.safe}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
         <ScrollView contentContainerStyle={styles.container}>
-          <TouchableOpacity onPress={() => router.back()} style={{ marginBottom: 8 }}>
-            <Text style={{ color: '#333' }}>← Volver</Text>
-          </TouchableOpacity>
 
-          <Text style={styles.header}>Sign Up</Text>
+          <Text style={styles.appName}>PsicoApp</Text>
+          <Text style={styles.title}>Crea tu cuenta</Text>
+          <Text style={styles.subtitle}>Regístrate para empezar tu viaje.</Text>
 
+          {/* Nombre */}
           <View style={styles.inputWrap}>
+            <View style={styles.iconBox}><Text style={styles.iconText}>👤</Text></View>
             <TextInput
               style={styles.input}
-              placeholder="Enter your full name"
+              placeholder="Nombre"
+              value={name}
+              onChangeText={setName}
+              placeholderTextColor="#A8B6C2"
+            />
+          </View>
+          <View style={styles.inputWrap}>
+            <View style={styles.iconBox}><Text style={styles.iconText}>👤</Text></View>
+            <TextInput
+              style={styles.input}
+              placeholder="Apellido"
               value={name}
               onChangeText={setName}
               placeholderTextColor="#A8B6C2"
             />
           </View>
 
+          {/* Email */}
           <View style={styles.inputWrap}>
+            <View style={styles.iconBox}><Text style={styles.iconText}>✉</Text></View>
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder="tu@email.com"
               keyboardType="email-address"
+              autoCapitalize="none"
               value={email}
               onChangeText={setEmail}
               placeholderTextColor="#A8B6C2"
             />
           </View>
 
+          {/* Password */}
           <View style={styles.inputWrap}>
+            <View style={styles.iconBox}><Text style={styles.iconText}>🔒</Text></View>
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder="Contraseña"
               secureTextEntry
               value={password}
               onChangeText={setPassword}
@@ -76,10 +94,12 @@ export default function RegisterScreen() {
             />
           </View>
 
+          {/* Confirm Password */}
           <View style={styles.inputWrap}>
+            <View style={styles.iconBox}><Text style={styles.iconText}>🔒</Text></View>
             <TextInput
               style={styles.input}
-              placeholder="Confirm your password"
+              placeholder="Confirmar contraseña"
               secureTextEntry
               value={confirm}
               onChangeText={setConfirm}
@@ -87,65 +107,73 @@ export default function RegisterScreen() {
             />
           </View>
 
+          {/* Términos */}
           <TouchableOpacity style={styles.checkboxRow} onPress={() => setAgree(!agree)}>
             <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
               {agree && <Text style={styles.checkMark}>✓</Text>}
             </View>
-            <Text style={{ marginLeft: 8 }}>I agree to the Terms and Conditions</Text>
+            <Text style={{ marginLeft: 8 }}>Acepto los Términos y Condiciones</Text>
           </TouchableOpacity>
 
+          {/* Botón Registro */}
           <TouchableOpacity style={styles.primaryBtn} onPress={onSignUp}>
-            <Text style={styles.primaryBtnText}>Sign Up</Text>
+            <Text style={styles.primaryBtnText}>Registrarse</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ marginTop: 24 }} onPress={() => router.push('/')}>
-            <Text style={styles.signInLink}>Already have an account? Sign In</Text>
+          {/* O continuar con Google */}
+          <Text style={styles.orText}>— O continúa con —</Text>
+
+          <TouchableOpacity style={styles.googleBtn}>
+            <View style={styles.googleIcon}><Text style={{ fontWeight: '700' }}>G</Text></View>
+            <Text style={styles.googleText}>Registrarse con Google</Text>
           </TouchableOpacity>
+
+          {/* Link a login */}
+          <View style={styles.registerRow}>
+            <Text>¿Ya tienes cuenta? </Text>
+            <TouchableOpacity onPress={() => router.push('/LoginSreen')}>
+              <Text style={styles.registerLink}>Inicia sesión</Text>
+            </TouchableOpacity>
+          </View>
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-// ...styles se mantienen igual
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFF' },
+  safe: { flex: 1, backgroundColor: '#ffffff' },
   container: {
-    padding: 20,
-    paddingTop: 10,
+    marginTop:30,
+    padding: 24,
+    paddingTop: 30,
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
     flexGrow: 1
   },
-  header: { textAlign: 'center', fontSize: 20, fontWeight: '700', marginBottom: 18 },
+  appName: { textAlign: 'center', color: '#2FA3E0', fontSize: 20, fontWeight: '700', marginTop: 6 },
+  title: { textAlign: 'center', fontSize: 26, fontWeight: '800', marginTop: 18 },
+  subtitle: { textAlign: 'center', color: '#9AA8B3', marginTop: 6, marginBottom: 18 },
 
-  inputWrap: {
-    borderWidth: 1,
-    borderColor: '#E7F0F6',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginBottom: 12
-  },
-  input: { fontSize: 15 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E7F0F6', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, marginTop: 10 },
+  iconBox: { width: 28, alignItems: 'center', justifyContent: 'center' },
+  iconText: { color: '#8DA7B3' },
+  input: { flex: 1, paddingHorizontal: 8 },
 
   checkboxRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-
-  checkbox: {
-    width: 22, height: 22, borderRadius: 4, borderWidth: 1, borderColor: '#C8D8E2',
-    alignItems: 'center', justifyContent: 'center'
-  },
+  checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 1, borderColor: '#C8D8E2', alignItems: 'center', justifyContent: 'center' },
   checkboxChecked: { backgroundColor: '#2FA3E0', borderColor: '#2FA3E0' },
   checkMark: { color: '#fff', fontWeight: '700' },
 
-  primaryBtn: {
-    marginTop: 18,
-    backgroundColor: '#B8E0FF',
-    paddingVertical: 14,
-    borderRadius: 24,
-    alignItems: 'center'
-  },
-  primaryBtnText: { color: '#062A3A', fontWeight: '700' },
+  primaryBtn: { marginTop: 16, backgroundColor: '#2FA3E0', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 
-  signInLink: { color: '#6B8DA0', textAlign: 'center', textDecorationLine: 'underline' }
+  orText: { textAlign: 'center', color: '#C9D6DD', marginVertical: 14 },
+  googleBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E7F0F6', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 10 },
+  googleIcon: { width: 30, height: 30, borderRadius: 6, borderWidth: 1, borderColor: '#E7F0F6', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  googleText: { flex: 1, textAlign: 'center' },
+
+  registerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
+  registerLink: { color: '#1FB1E6', fontWeight: '700' }
 });

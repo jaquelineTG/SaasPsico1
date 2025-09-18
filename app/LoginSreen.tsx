@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView, Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text, TextInput, TouchableOpacity,
@@ -14,8 +13,18 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+    const onSignUp = () => {
+    if (!email || !password || !confirm) {
+      alert('Completa todos los campos');
+      return;
+    }
+    
+    router.push('/')
+    alert('Registro OK (simulado)');
+  };
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -53,13 +62,13 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity style={{ alignSelf: 'flex-end', marginTop: 6 }}>
+          <TouchableOpacity  onPress={() => router.push('/ForgotPasswordScreen')} style={{ alignSelf: 'flex-end', marginTop: 6 }} >
             <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.primaryBtn}
-            onPress={() => { /* TODO: backend auth */ }}
+            onPress={onSignUp}
           >
             <Text style={styles.primaryBtnText}>Iniciar sesión</Text>
           </TouchableOpacity>
@@ -80,7 +89,7 @@ export default function LoginScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -90,6 +99,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#ffffff' },
   container: {
+    marginTop:50,
     padding: 24,
     paddingTop: 30,
     alignItems: 'stretch',
