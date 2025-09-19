@@ -6,9 +6,9 @@ export default function home() {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Login Screen</Text>
+      <Text>Welcome</Text>
       <Button
-        title="Go to Register"
+        title="Go to login"
         onPress={() => router.push('/LoginSreen')}
       />
     </View>
