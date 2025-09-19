@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+
 import React, { useState } from 'react';
+
 import {
   KeyboardAvoidingView, Platform,
   ScrollView,
@@ -11,27 +14,57 @@ import {
 export default function RegisterScreen() {
   const router = useRouter(); 
   const [name, setName] = useState('');
+  const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [agree, setAgree] = useState(false);
 
-  const onSignUp = () => {
-    if (!name || !email || !password || !confirm) {
-      alert('Completa todos los campos');
-      return;
+const onRegister = async () => {
+  if (!name || !email || !password || !confirm) {
+    alert('Completa todos los campos');
+    return;
+  }
+  if (password !== confirm) {
+    alert('Las contraseñas no coinciden');
+    return;
+  }
+  if (!agree) {
+    alert('Debes aceptar los Términos y Condiciones');
+    return;
+  }
+
+  try {
+    const response = await fetch("http://10.0.2.2:8080/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        nombre: name,
+        apellido:apellido,
+        email: email,
+        passwordHash: password
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Error en registro");
     }
-    if (password !== confirm) {
-      alert('Las contraseñas no coinciden');
-      return;
-    }
-    if (!agree) {
-      alert('Debes aceptar los Términos y Condiciones');
-      return;
-    }
-    router.push("/DashBoardScreen")
-    alert('Registro OK (simulado)');
-  };
+
+    const data = await response.json();
+    console.log("Registro OK:", data);
+
+    // Guardar token si el backend lo devuelve
+    await AsyncStorage.setItem("token", data.token);
+
+    router.push("/DashBoardScreen");
+  } catch (error) {
+    console.error(error);
+    alert("Error en el registro");
+  }
+};
+
 
   return (
     <View style={styles.safe}>
@@ -62,10 +95,11 @@ export default function RegisterScreen() {
               style={styles.input}
               placeholder="Apellido"
               value={name}
-              onChangeText={setName}
+              onChangeText={setApellido}
               placeholderTextColor="#A8B6C2"
             />
           </View>
+          
 
           {/* Email */}
           <View style={styles.inputWrap}>
@@ -116,7 +150,7 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           {/* Botón Registro */}
-          <TouchableOpacity style={styles.primaryBtn} onPress={onSignUp}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={onRegister}>
             <Text style={styles.primaryBtnText}>Registrarse</Text>
           </TouchableOpacity>
 

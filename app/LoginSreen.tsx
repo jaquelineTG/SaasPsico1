@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -13,15 +14,41 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-    const onSignUp = () => {
-    if (!email || !password || !confirm) {
-      alert('Completa todos los campos');
-      return;
+const onLogin = async () => {
+  if (!email || !password) {
+    alert('Completa todos los campos');
+    return;
+  }
+
+  try {
+    const response = await fetch("http://10.0.2.2:8080/auth/login", { // ⚡ si usas emulador Android
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Error en login");
     }
-    
-    router.push('/DashBoardScreen')
-    alert('Registro OK (simulado)');
-  };
+
+    const data = await response.json();
+    console.log("Login OK:", data);
+
+    // Guardar token (ejemplo)
+    await AsyncStorage.setItem("token", data.token);
+
+    router.push("/DashBoardScreen");
+  } catch (error) {
+    console.error(error);
+    alert("Credenciales incorrectas o error de conexión");
+  }
+};
+
 
   return (
     <View style={styles.safe}>
@@ -68,7 +95,7 @@ export default function LoginScreen() {
 
           <TouchableOpacity
             style={styles.primaryBtn}
-            onPress={onSignUp}
+            onPress={onLogin}
           >
             <Text style={styles.primaryBtnText}>Iniciar sesión</Text>
           </TouchableOpacity>
