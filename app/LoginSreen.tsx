@@ -14,6 +14,16 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+    const onSignUp = () => {
+    if (!email || !password || !confirm) {
+      alert('Completa todos los campos');
+      return;
+    }
+    
+    router.push('/')
+    alert('Registro OK (simulado)');
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView

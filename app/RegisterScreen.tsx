@@ -30,7 +30,11 @@ export default function RegisterScreen() {
       alert('Debes aceptar los Términos y Condiciones');
       return;
     }
+<<<<<<< Updated upstream
     // TODO: backend
+=======
+    router.push('/DashBoardScreen')
+>>>>>>> Stashed changes
     alert('Registro OK (simulado)');
   };
 
