@@ -29,7 +29,7 @@ export default function RegisterScreen() {
       alert('Debes aceptar los Términos y Condiciones');
       return;
     }
-    // TODO: backend
+    router.push("/DashBoardScreen")
     alert('Registro OK (simulado)');
   };
 

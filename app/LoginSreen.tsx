@@ -19,7 +19,7 @@ export default function LoginScreen() {
       return;
     }
     
-    router.push('/')
+    router.push('/DashBoardScreen')
     alert('Registro OK (simulado)');
   };
 
