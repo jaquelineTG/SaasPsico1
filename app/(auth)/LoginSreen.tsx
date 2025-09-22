@@ -42,7 +42,7 @@ const onLogin = async () => {
     // Guardar token (ejemplo)
     await AsyncStorage.setItem("token", data.token);
 
-    router.push("/DashBoardScreen");
+    router.replace("/(tabs)");
   } catch (error) {
     console.error(error);
     alert("Credenciales incorrectas o error de conexión");

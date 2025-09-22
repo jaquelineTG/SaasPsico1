@@ -58,7 +58,7 @@ const onRegister = async () => {
     // Guardar token si el backend lo devuelve
     await AsyncStorage.setItem("token", data.token);
 
-    router.push("/DashBoardScreen");
+     router.replace("/(tabs)");
   } catch (error) {
     console.error(error);
     alert("Error en el registro");
