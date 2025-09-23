@@ -23,7 +23,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="calendario"
         options={{
-          title: "Calendario",
+          title: "Citas",
           tabBarIcon: ({ color }) => (
             <Ionicons name="calendar-outline" size={22} color={color} />
           ),
