@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
-export default function CitasScreen({ navigation }: any) {
-  const router = useRouter(); 
+export default function CitasScreen() {
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState('');
   const [appointments] = useState([
     { id: '1', date: '2024-05-05', title: 'Consulta con Sofía', time: '10:00 AM - 11:00 AM', color: '#dbeafe' },
@@ -13,10 +13,13 @@ export default function CitasScreen({ navigation }: any) {
     { id: '3', date: '2024-05-05', title: 'Revisión con Ana', time: '2:00 PM - 3:00 PM', color: '#dcfce7' },
   ]);
 
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Citas</Text>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text style={styles.title}>Citas</Text>
+        </View>
         <TouchableOpacity onPress={() => router.push('/')}>
           <Ionicons name="add-circle-outline" size={28} color="#4e73df" />
         </TouchableOpacity>
@@ -25,14 +28,28 @@ export default function CitasScreen({ navigation }: any) {
       <Calendar
         onDayPress={(day) => setSelectedDate(day.dateString)}
         markedDates={{
-          [selectedDate]: { selected: true, marked: true, selectedColor: '#4e73df' },
+         
+          [selectedDate]: {
+            selected: true,
+            selectedColor: '#4e73df', 
+            selectedTextColor: '#fff', 
+          },
         }}
+         monthFormat={'MMMM yyyy'}
         theme={{
           todayTextColor: '#4e73df',
           arrowColor: '#4e73df',
           textMonthFontWeight: 'bold',
+          dayTextColor: '#1f2937',
+          textDayFontWeight: 'bold',
+          selectedDayBackgroundColor: '#4e73df', 
+          selectedDayTextColor: '#fff',          
+          dotColor: '#4e73df',                   
+          selectedDotColor: '#fff',         
         }}
       />
+
+
 
       <Text style={styles.subtitle}>Próximas citas</Text>
       <FlatList
@@ -54,10 +71,11 @@ export default function CitasScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 15 },
+  container: { flex: 1, backgroundColor: '#fff', padding: 15, marginTop: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   title: { fontSize: 20, fontWeight: 'bold' },
   subtitle: { fontSize: 16, fontWeight: '600', marginVertical: 15 },
+  selectedDate: { textAlign: 'center', marginVertical: 10, fontSize: 16, fontWeight: '600', color: '#4e73df' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -35,7 +35,7 @@ const onRegister = async () => {
   }
 
   try {
-    const response = await fetch("http://10.0.2.2:8080/auth/register", {
+    const response = await fetch("http://192.168.100.12:8080/auth/register", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -44,7 +44,7 @@ const onRegister = async () => {
         nombre: name,
         apellido:apellido,
         email: email,
-        passwordHash: password
+        password: password
       })
     });
 
@@ -94,7 +94,7 @@ const onRegister = async () => {
             <TextInput
               style={styles.input}
               placeholder="Apellido"
-              value={name}
+              value={apellido}
               onChangeText={setApellido}
               placeholderTextColor="#A8B6C2"
             />

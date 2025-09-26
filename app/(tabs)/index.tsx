@@ -9,10 +9,12 @@ export default function DashBoardScreen() {
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Ionicons name="menu" size={28} color="black" />
-        <Text style={styles.headerTitle}>Dashboard</Text>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text style={styles.headerTitle}>Dashboard</Text>
+        </View>
         <Ionicons name="notifications-outline" size={26} color="black" />
       </View>
+
 
       {/* Próximas Citas */}
       <Text style={styles.sectionTitle}>Próximas Citas</Text>
@@ -69,17 +71,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     paddingHorizontal: 16,
+    marginTop: 10
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 15,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    textAlign: "center",
   },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
