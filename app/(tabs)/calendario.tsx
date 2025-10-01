@@ -1,71 +1,114 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+
+interface PacienteDTO {
+  paciente_id: number;
+  nombre: string;
+  apellido: string;
+  fecha_nacimiento: string;
+}
 
 export default function CitasScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState('');
-  const [appointments] = useState([
-    { id: '1', date: '2024-05-05', title: 'Consulta con Sofía', time: '10:00 AM - 11:00 AM', color: '#dbeafe' },
-    { id: '2', date: '2024-05-05', title: 'Terapia con Carlos', time: '11:30 AM - 12:30 PM', color: '#e0e7ff' },
-    { id: '3', date: '2024-05-05', title: 'Revisión con Ana', time: '2:00 PM - 3:00 PM', color: '#dcfce7' },
-  ]);
+  const [pacientes, setPacientes] = useState<PacienteDTO[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  // 🔹 Función para obtener citas del día
+  const fetchCitasPorDia = async (fecha: string) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await fetch(`http://192.168.100.12:8080/api/getCitas/${fecha}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Error al obtener citas");
+
+      const data = await res.json();
+      setPacientes(data);
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "No se pudieron cargar las citas");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
+      {/* HEADER */}
       <View style={styles.header}>
         <View style={{ flex: 1, alignItems: "center" }}>
           <Text style={styles.title}>Citas</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push('/')}>
+        <TouchableOpacity onPress={() => router.push('/nueva-cita')}>
           <Ionicons name="add-circle-outline" size={28} color="#4e73df" />
         </TouchableOpacity>
       </View>
 
+      {/* CALENDARIO */}
       <Calendar
-        onDayPress={(day) => setSelectedDate(day.dateString)}
+        onDayPress={(day) => {
+          setSelectedDate(day.dateString);
+          fetchCitasPorDia(day.dateString); // 🔹 Traer pacientes del día
+        }}
         markedDates={{
-         
           [selectedDate]: {
             selected: true,
-            selectedColor: '#4e73df', 
-            selectedTextColor: '#fff', 
+            selectedColor: '#4e73df',
+            selectedTextColor: '#fff',
           },
         }}
-         monthFormat={'MMMM yyyy'}
+        monthFormat={'MMMM yyyy'}
         theme={{
           todayTextColor: '#4e73df',
           arrowColor: '#4e73df',
           textMonthFontWeight: 'bold',
           dayTextColor: '#1f2937',
           textDayFontWeight: 'bold',
-          selectedDayBackgroundColor: '#4e73df', 
-          selectedDayTextColor: '#fff',          
-          dotColor: '#4e73df',                   
-          selectedDotColor: '#fff',         
+          selectedDayBackgroundColor: '#4e73df',
+          selectedDayTextColor: '#fff',
+          dotColor: '#4e73df',
+          selectedDotColor: '#fff',
         }}
       />
 
+      <Text style={styles.subtitle}>Proximas citas{selectedDate}</Text>
 
+      {loading ? (
+        <ActivityIndicator size="large" color="#4e73df" style={{ marginTop: 20 }} />
+      ) : (
+        <FlatList
+          data={pacientes} // aquí asume que el backend manda {nombre, horaInicio, horaFin, tipo}
+          keyExtractor={(item) => item.paciente_id.toString()}
+          renderItem={({ item, index }) => {
+            // colores suaves alternados
+            const colores = ['#dbeafe', '#e0e7ff', '#dcfce7'];
+            const color = colores[index % colores.length];
 
-      <Text style={styles.subtitle}>Próximas citas</Text>
-      <FlatList
-        data={appointments}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: item.color }]}>
-            <Ionicons name="calendar-outline" size={22} color="#1f2937" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardTime}>{item.time}</Text>
-            </View>
-            <Ionicons name="ellipsis-vertical" size={20} color="#555" />
-          </View>
-        )}
-      />
+            return (
+              <View style={[styles.card, { backgroundColor: color }]}>
+                <Ionicons name="calendar-outline" size={22} color="#1f2937" />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.cardTitle}>{item.nombre} {item.apellido}</Text>
+                  <Text style={styles.cardTime}>
+                    {item.hora_inicio} - {item.hora_final} {/* puedes usar la hora de tu backend */}
+                  </Text>
+                </View>
+                <Ionicons name="ellipsis-vertical" size={20} color="#555" />
+              </View>
+            );
+          }}
+        />
+
+      )}
     </View>
   );
 }
@@ -75,7 +118,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   title: { fontSize: 20, fontWeight: 'bold' },
   subtitle: { fontSize: 16, fontWeight: '600', marginVertical: 15 },
-  selectedDate: { textAlign: 'center', marginVertical: 10, fontSize: 16, fontWeight: '600', color: '#4e73df' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -84,5 +126,5 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardTitle: { fontSize: 16, fontWeight: '600' },
-  cardTime: { fontSize: 14, color: '#555' },
+  cardTime: { fontSize: 14, color: '#555', marginTop: 2 },
 });
