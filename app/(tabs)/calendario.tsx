@@ -61,6 +61,12 @@ export default function CitasScreen() {
             selectedTextColor: "#fff",
           },
         }}
+
+        onMonthChange={() => {
+          // Cuando cambie el mes, limpia la lista de citas
+          setCitas([]);
+          setSelectedDate("");
+        }}
         monthFormat={"MMMM yyyy"}
         theme={{
           todayTextColor: "#4e73df",
