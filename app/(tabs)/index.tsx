@@ -1,9 +1,117 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function DashBoardScreen() {
   const router = useRouter();
+  const [PacientesyHorario, setPacientesyHorario] = useState<any[]>([]);
+  const [PacientesProximos, setPacientesProximos] = useState<any[]>([]);
+  const [noCitasSemanal, setNoCitasSemanal] = useState(0);
+
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          Alert.alert('Error', 'Usuario no autenticado');
+          router.replace('/(auth)/LoginSreen');
+          return;
+        }
+
+        const response = await fetch('http://192.168.100.12:8080/api/getPacientesPorFecha', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al obtener pacientes Y horario');
+        }
+
+        const data = await response.json();
+        console.log('Pacientes:', data); // Verifica propiedades
+        setPacientesyHorario(data);
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'No se pudo obtener la lista de pacientes');
+      }
+    };
+
+    fetchPatients();
+  }, []);
+
+    useEffect(() => {
+    const fetchPacientesProximasFechas = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          Alert.alert('Error', 'Usuario no autenticado');
+          router.replace('/(auth)/LoginSreen');
+          return;
+        }
+
+        const response = await fetch('http://192.168.100.12:8080/api/getPacientesPorProximasFechas', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al obtener pacientes de fechas proximas');
+        }
+
+        const data = await response.json();
+        console.log('Pacientes:', data); // Verifica propiedades
+        setPacientesProximos(data);
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'No se pudo obtener la lista de pacientes proximos');
+      }
+    };
+
+    fetchPacientesProximasFechas();
+  }, []);
+
+    useEffect(() => {
+    const fetchNoCitasSemanal = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          Alert.alert('Error', 'Usuario no autenticado');
+          router.replace('/(auth)/LoginSreen');
+          return;
+        }
+
+        const response = await fetch('http://192.168.100.12:8080/api/getCitasPorSemana', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al obtener pacientes de fechas proximas');
+        }
+
+        const data = await response.json();
+        console.log('Pacientes:', data); // Verifica propiedades
+        setNoCitasSemanal(data);
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'No se pudo obtener la lista de pacientes proximos');
+      }
+    };
+
+    fetchNoCitasSemanal();
+  }, []);
+
 
   return (
     <ScrollView style={styles.container}>
@@ -18,44 +126,40 @@ export default function DashBoardScreen() {
 
       {/* Próximas Citas */}
       <Text style={styles.sectionTitle}>Próximas Citas</Text>
-      <View style={styles.card}>
-        <Ionicons name="calendar" size={20} color="#007bff" />
-        <View style={{ marginLeft: 10 }}>
-          <Text style={styles.cardTitle}>Terapia Individual con Sofía</Text>
-          <Text style={styles.cardTime}>10:00 AM - 11:00 AM</Text>
-        </View>
-      </View>
-      <View style={styles.card}>
-        <Ionicons name="calendar" size={20} color="#007bff" />
-        <View style={{ marginLeft: 10 }}>
-          <Text style={styles.cardTitle}>Consulta Inicial con Carlos</Text>
-          <Text style={styles.cardTime}>11:30 AM - 12:30 PM</Text>
-        </View>
+      <ScrollView contentContainerStyle={styles.listContainer}>
+        {PacientesyHorario.map((p: any) => (
+          <View style={styles.card}>
+            <Ionicons name="calendar" size={20} color="#007bff" />
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.cardTitle}>Consulta {p.tipo_terapia} con {p.nombre}</Text>
+              <Text style={styles.cardTime}>{p.hora_inicio} - {p.hora_final}</Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+      <View>
+
       </View>
 
       {/* Próximos Pacientes */}
       <Text style={styles.sectionTitle}>Próximos Pacientes</Text>
+      <ScrollView contentContainerStyle={styles.listContainer}>
+      {PacientesProximos.map((p: any) => (
       <View style={styles.patientCard}>
         <Ionicons name="person-circle" size={40} color="#FF7F50" />
         <View style={{ marginLeft: 10 }}>
-          <Text style={styles.patientName}>Laura García</Text>
-          <Text style={styles.patientDate}>Próxima cita: 15 de Julio</Text>
+          <Text style={styles.patientName}>{p.nombre} {p.apellido}</Text>
+          <Text style={styles.patientDate}>Próxima cita: {p.fecha}</Text>
         </View>
       </View>
-      <View style={styles.patientCard}>
-        <Ionicons name="person-circle" size={40} color="#6495ED" />
-        <View style={{ marginLeft: 10 }}>
-          <Text style={styles.patientName}>Daniel Rodríguez</Text>
-          <Text style={styles.patientDate}>Próxima cita: 20 de Julio</Text>
-        </View>
-      </View>
-
+      ))}
+      </ScrollView>
       {/* Métricas Rápidas */}
       <Text style={styles.sectionTitle}>Métricas Rápidas</Text>
       <View style={styles.metricsRow}>
         <View style={[styles.metricBox, { backgroundColor: "#E6F7F5" }]}>
           <Text style={styles.metricLabel}>Citas de la Semana</Text>
-          <Text style={styles.metricValue}>5</Text>
+          <Text style={styles.metricValue}>{noCitasSemanal}</Text>
         </View>
         <View style={[styles.metricBox, { backgroundColor: "#FFF5E6" }]}>
           <Text style={styles.metricLabel}>Ingresos</Text>
@@ -145,4 +249,9 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 5,
   },
+  listContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    flexGrow: 1
+  }
 });
