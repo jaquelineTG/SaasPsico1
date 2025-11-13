@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
+import { DateTime } from "luxon";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -44,7 +45,7 @@ export default function DashBoardScreen() {
     fetchPatients();
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchPacientesProximasFechas = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
@@ -78,7 +79,7 @@ export default function DashBoardScreen() {
     fetchPacientesProximasFechas();
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchNoCitasSemanal = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
@@ -112,6 +113,26 @@ export default function DashBoardScreen() {
     fetchNoCitasSemanal();
   }, []);
 
+  // Formatea "2025-11-13" a "13 de noviembre"
+  const formatearFecha = (fechaString: string) => {
+    try {
+      const fecha = DateTime.fromISO(fechaString);
+      return fecha.setLocale('es').toFormat("d 'de' LLLL");
+    } catch {
+      return fechaString;
+    }
+  };
+
+  // Formatea "16:39:51" a "4:39 pm"
+  const formatearHora = (horaString: string) => {
+    try {
+      // Si viene como "16:39:51" → la convertimos a 16:39
+      const hora = DateTime.fromFormat(horaString.substring(0, 5), "HH:mm");
+      return hora.toFormat("h:mm a").toLowerCase(); // "4:39 pm"
+    } catch {
+      return horaString;
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -132,7 +153,9 @@ export default function DashBoardScreen() {
             <Ionicons name="calendar" size={20} color="#007bff" />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.cardTitle}>Consulta {p.tipo_terapia} con {p.nombre}</Text>
-              <Text style={styles.cardTime}>{p.hora_inicio} - {p.hora_final}</Text>
+              <Text style={styles.cardTime}>
+                {formatearHora(p.hora_inicio)} - {formatearHora(p.hora_final)}
+              </Text>
             </View>
           </View>
         ))}
@@ -144,15 +167,17 @@ export default function DashBoardScreen() {
       {/* Próximos Pacientes */}
       <Text style={styles.sectionTitle}>Próximos Pacientes</Text>
       <ScrollView contentContainerStyle={styles.listContainer}>
-      {PacientesProximos.map((p: any) => (
-      <View style={styles.patientCard}>
-        <Ionicons name="person-circle" size={40} color="#FF7F50" />
-        <View style={{ marginLeft: 10 }}>
-          <Text style={styles.patientName}>{p.nombre} {p.apellido}</Text>
-          <Text style={styles.patientDate}>Próxima cita: {p.fecha}</Text>
-        </View>
-      </View>
-      ))}
+        {PacientesProximos.map((p: any) => (
+          <View style={styles.patientCard}>
+            <Ionicons name="person-circle" size={40} color="#FF7F50" />
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.patientName}>{p.nombre} {p.apellido}</Text>
+              <Text style={styles.patientDate}>
+                Próxima cita: {formatearFecha(p.fecha)}
+              </Text>
+            </View>
+          </View>
+        ))}
       </ScrollView>
       {/* Métricas Rápidas */}
       <Text style={styles.sectionTitle}>Métricas Rápidas</Text>
