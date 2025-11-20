@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -10,13 +12,150 @@ import {
   View
 } from "react-native";
 
+/* ====================== TYPE PACIENTE ====================== */
+type Paciente = {
+  paciente_id: number;
+  nombre: string;
+  apellido: string;
+  telefono: string;
+  sexo: string;
+  tipo_terapia: string;
+  direccion: string;
+  ocupacion: string;
+  usuario_id: number;
+  fecha_nacimiento: string;
+};
+
 export default function Facturacion() {
   const router = useRouter();
   const [tab, setTab] = useState("Semana");
   const [modalVisible, setModalVisible] = useState(false);
 
+  /* === ESTADOS DE PAGO === */
+  const [metodo, setMetodo] = useState<string>("");
+  const [monto, setMonto] = useState<string>("");
+
+  /* === PACIENTES === */
+  const [patients, setPatients] = useState<Paciente[]>([]);
+  const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
+  const [mostrarDropdown, setMostrarDropdown] = useState(false);
+
+  /* === FECHA === */
+  const formatFechaMMDD = () => {
+    const d = new Date();
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const dia = String(d.getDate()).padStart(2, "0");
+    const año = d.getFullYear();
+    return `${mes}/${dia}/${año}`;
+  };
+
+  const [fechaPago, setFechaPago] = useState(formatFechaMMDD());
+
+  /* ========== CARGAR PACIENTES ========== */
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          Alert.alert('Error', 'Usuario no autenticado');
+          router.replace('/(auth)/LoginSreen');
+          return;
+        }
+
+        const response = await fetch('http://192.168.100.12:8080/api/getPacientes', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al obtener pacientes');
+        }
+
+        const data = await response.json();
+        setPatients(data);
+
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'No se pudo obtener la lista de pacientes');
+      }
+    };
+
+    fetchPatients();
+  }, []);
+
+  /* =================== GUARDAR PAGO =================== */
+  const guardarPago = async () => {
+
+    if (!pacienteSeleccionado) {
+      Alert.alert("Error", "Debes seleccionar un paciente");
+      return;
+    }
+
+    if (!monto || isNaN(parseFloat(monto))) {
+      Alert.alert("Error", "Debes ingresar un monto válido");
+      return;
+    }
+
+    if (!metodo) {
+      Alert.alert("Error", "Selecciona un método de pago");
+      return;
+    }
+
+    const convertirFechaAISO = (fecha: string) => {
+      const [mes, dia, año] = fecha.split("/");
+      return `${año}-${mes}-${dia}`; // yyyy-MM-dd
+    };
+
+
+    const pagoDTO = {
+      paciente_id: pacienteSeleccionado.paciente_id,
+      monto: parseFloat(monto),
+      metodo: metodo,
+      fecha: convertirFechaAISO(fechaPago)
+    };
+
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        Alert.alert("Error", "Usuario no autenticado");
+        router.replace("/(auth)/LoginSreen");
+        return;
+      }
+
+      const res = await fetch("http://192.168.100.12:8080/api/savePago", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(pagoDTO),
+      });
+
+      if (res.ok) {
+        Alert.alert("Éxito", "Pago registrado correctamente");
+        setModalVisible(false);
+        setMonto("");
+        setMetodo("");
+        setPacienteSeleccionado(null);
+
+      } else {
+        const error = await res.text();
+        Alert.alert("Error", error);
+      }
+
+    } catch (err) {
+      console.error("Error guardando pago:", err);
+      Alert.alert("Error", "No se pudo guardar el pago");
+    }
+  };
+
+  /* ======================= UI ======================= */
   return (
     <View style={styles.container}>
+
       {/* Tabs */}
       <View style={styles.tabs}>
         {["Día", "Semana", "Mes"].map((label) => (
@@ -63,7 +202,6 @@ export default function Facturacion() {
 
           <Text style={styles.subtitle}>Últimos 30 días</Text>
 
-          {/* Gráfica placeholder */}
           <View style={styles.graphPlaceholder}>
             <Text style={{ color: "#A0A0A0" }}>(Gráfica aquí)</Text>
           </View>
@@ -72,7 +210,7 @@ export default function Facturacion() {
         {/* Historial */}
         <Text style={styles.sectionTitle}>Historial de Pagos</Text>
 
-        {[
+        {[ // Ejemplo temporal
           { paciente: "Ana Gómez", fecha: "15 Nov, 2024", tipo: "Efectivo", monto: "+$150.00" },
           { paciente: "Roberto Diaz", fecha: "12 Nov, 2024", tipo: "Transferencia", monto: "+$150.00" },
           { paciente: "Lucía Fernandez", fecha: "10 Nov, 2024", tipo: "Efectivo", monto: "+$100.00" }
@@ -87,23 +225,22 @@ export default function Facturacion() {
         ))}
 
         {/* Botón Nuevo Pago */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.newPaymentBtn}
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            setFechaPago(formatFechaMMDD());
+            setModalVisible(true);
+          }}
         >
           <Text style={styles.newPaymentBtnText}>+  Nuevo Pago</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Modal Registrar Pago */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-      >
+      {/* ======= MODAL ======= */}
+      <Modal animationType="slide" transparent visible={modalVisible}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            {/* Header */}
+
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Registrar Nuevo Pago</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -111,47 +248,89 @@ export default function Facturacion() {
               </TouchableOpacity>
             </View>
 
-            {/* Contenido */}
-            <View style={{ marginBottom: 20 }}>
-              <Text style={styles.label}>Paciente</Text>
-              <TouchableOpacity style={styles.selectInput}>
-                <Text style={styles.selectText}>Seleccionar paciente</Text>
-              </TouchableOpacity>
+            {/* SELECT PACIENTE */}
+            <Text style={styles.label}>Paciente</Text>
 
-              <View style={styles.row}>
-                {/* Monto */}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Monto</Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    placeholder="$ 0.00"
-                    style={styles.input}
-                  />
-                </View>
+            <TouchableOpacity
+              style={styles.selectBox}
+              onPress={() => setMostrarDropdown(!mostrarDropdown)}
+            >
+              <Text style={styles.selectBoxText}>
+                {pacienteSeleccionado
+                  ? pacienteSeleccionado.nombre + " " + pacienteSeleccionado.apellido
+                  : "Seleccionar paciente"
+                }
+              </Text>
+              <Text style={styles.arrowIcon}>⌄</Text>
+            </TouchableOpacity>
 
-                {/* Fecha */}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Fecha</Text>
-                  <TextInput
-                    placeholder="mm/dd/yyyy"
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-
-              {/* Método de Pago */}
-              <Text style={styles.label}>Método de Pago</Text>
-
-              <View style={styles.paymentMethods}>
-                {["Efectivo", "Transf.", "Tarjeta"].map((m) => (
-                  <TouchableOpacity key={m} style={styles.methodBtn}>
-                    <Text style={styles.methodBtnText}>{m}</Text>
+            {mostrarDropdown && (
+              <View style={styles.dropdownContainer}>
+                {patients.map((p) => (
+                  <TouchableOpacity
+                    key={p.paciente_id}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setPacienteSeleccionado(p);
+                      setMostrarDropdown(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{p.nombre} {p.apellido}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+            )}
+
+            {/* Monto - Fecha */}
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Monto</Text>
+                <TextInput
+                  keyboardType="numeric"
+                  placeholder="$ 0.00"
+                  style={styles.input}
+                  value={monto}
+                  onChangeText={setMonto}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Fecha</Text>
+                <TextInput
+                  value={fechaPago}
+                  onChangeText={setFechaPago}
+                  placeholder="mm/dd/yyyy"
+                  style={styles.input}
+                />
+              </View>
             </View>
 
-            {/* Botones */}
+            {/* MÉTODO DE PAGO */}
+            <Text style={styles.label}>Método de Pago</Text>
+
+            <View style={styles.paymentMethods}>
+              {["Efectivo", "Transferencia", "Tarjeta"].map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[
+                    styles.methodBtn,
+                    metodo === m && { backgroundColor: "#2D6CF6" }
+                  ]}
+                  onPress={() => setMetodo(m)}
+                >
+                  <Text
+                    style={[
+                      styles.methodBtnText,
+                      metodo === m && { color: "white" }
+                    ]}
+                  >
+                    {m}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Footer */}
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={styles.cancelBtn}
@@ -160,7 +339,10 @@ export default function Facturacion() {
                 <Text style={styles.cancelText}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.saveBtn}>
+              <TouchableOpacity
+                style={styles.saveBtn}
+                onPress={guardarPago}
+              >
                 <Text style={styles.saveText}>Registrar Pago</Text>
               </TouchableOpacity>
             </View>
@@ -172,6 +354,7 @@ export default function Facturacion() {
   );
 }
 
+/* ============================= ESTILOS ============================= */
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F6FA", paddingTop: 45 },
@@ -274,22 +457,64 @@ const styles = StyleSheet.create({
   modalClose: { fontSize: 24 },
 
   label: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
-  selectInput: {
-    backgroundColor: "#F2F4F7",
+
+  /* SELECT PACIENTE */
+  selectBox: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D6D6D6",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8
+  },
+  selectBoxText: {
+    color: "#333",
+    fontSize: 16,
+  },
+  arrowIcon: {
+    fontSize: 18,
+    color: "#777",
+  },
+  dropdownContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D6D6D6",
+    marginBottom: 12,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F1F1",
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: "#333",
+  },
+
+  /* Inputs */
+  row: { flexDirection: "row", gap: 10 },
+  input: {
+    backgroundColor: "#FFFFFF",
     padding: 14,
     borderRadius: 12,
     marginBottom: 12,
-  },
-  selectText: { color: "#707070" },
-  row: { flexDirection: "row", gap: 10 },
-
-  input: {
-    backgroundColor: "#F2F4F7",
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 12
+    borderWidth: 1,
+    borderColor: "#D6D6D6",
   },
 
+  /* Métodos de pago */
   paymentMethods: {
     flexDirection: "row",
     gap: 10,
@@ -304,6 +529,7 @@ const styles = StyleSheet.create({
   },
   methodBtnText: { fontWeight: "700", color: "#2D6CF6" },
 
+  /* Footer */
   modalFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
