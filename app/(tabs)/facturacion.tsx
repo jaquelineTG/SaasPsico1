@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Dimensions,
   Modal,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,9 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+
+import { LineChart } from "react-native-chart-kit";
+const screenWidth = Dimensions.get("window").width;
 
 /* ====================== TYPE PACIENTE ====================== */
 type Paciente = {
@@ -26,7 +30,19 @@ type Paciente = {
   fecha_nacimiento: string;
 };
 
+type PagoDTO = {
+  idPaciente: number;
+  nombre: string;
+  apellido: string;
+  monto: number;
+  fecha: string;       // LocalDate → string (formato "yyyy-MM-dd")
+  metodo: string;      // enum del backend, llega como texto
+};
+
+
+
 export default function Facturacion() {
+
   const router = useRouter();
   const [tab, setTab] = useState("Semana");
   const [modalVisible, setModalVisible] = useState(false);
@@ -51,16 +67,18 @@ export default function Facturacion() {
 
   const [fechaPago, setFechaPago] = useState(formatFechaMMDD());
 
-  /* ========== CARGAR PACIENTES ========== */
+  /* === PAGOS === */
+  const [pagos, setPagos] = useState([]);
+  const [pagosPacientes, setPagosPacientes] = useState<PagoDTO[]>([]);
+  const [ingresos30dias, setIngresos30dias] = useState<number[]>([]);
+  const [porcentajeCambio, setPorcentajeCambio] = useState<number>(0);
+
+  /* =================== CARGAR PACIENTES =================== */
   useEffect(() => {
     const fetchPatients = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        if (!token) {
-          Alert.alert('Error', 'Usuario no autenticado');
-          router.replace('/(auth)/LoginSreen');
-          return;
-        }
+        if (!token) return;
 
         const response = await fetch('http://192.168.100.12:8080/api/getPacientes', {
           method: 'GET',
@@ -70,21 +88,90 @@ export default function Facturacion() {
           },
         });
 
-        if (!response.ok) {
-          throw new Error('Error al obtener pacientes');
-        }
-
         const data = await response.json();
         setPatients(data);
 
       } catch (err) {
-        console.error(err);
         Alert.alert('Error', 'No se pudo obtener la lista de pacientes');
       }
     };
 
     fetchPatients();
   }, []);
+
+  /* =================== CARGAR PAGOS =================== */
+  useEffect(() => {
+    const fetchPagos = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+
+        const res = await fetch("http://192.168.100.12:8080/api/getPagos", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        const data = await res.json();
+        setPagos(data);
+
+        procesarGrafica(data);
+
+      } catch (err) {
+        console.log("Error cargando pagos: ", err);
+      }
+    };
+
+    fetchPagos();
+  }, []);
+
+    /* =================== CARGAR PAGOSPacientes =================== */
+  useEffect(() => {
+    const fetchPagos = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+
+        const res = await fetch("http://192.168.100.12:8080/api/getPagosPacientes", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        const data = await res.json();
+        setPagosPacientes(data);
+
+
+      } catch (err) {
+        console.log("Error cargando pagos: ", err);
+      }
+    };
+
+    fetchPagos();
+  }, []);
+
+  /* ============= PROCESAR GRÁFICA ============= */
+  const procesarGrafica = (data: PagoDTO[]) => {
+  const hoy = new Date();
+  const hace30 = new Date();
+  hace30.setDate(hoy.getDate() - 30);
+
+  const ingresos = Array(30).fill(0);
+
+  data.forEach((pago: PagoDTO) => {
+    const fecha = new Date(pago.fecha);
+    if (fecha >= hace30 && fecha <= hoy) {
+      const diff = Math.floor(
+        (fecha.getTime() - hace30.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      ingresos[diff] += pago.monto;
+    }
+  });
+
+  setIngresos30dias(ingresos);
+
+  const mitad = Math.floor(ingresos.length / 2);
+  const primeros = ingresos.slice(0, mitad).reduce((a, b) => a + b, 0);
+  const ultimos = ingresos.slice(mitad).reduce((a, b) => a + b, 0);
+  const cambio = primeros === 0 ? 100 : ((ultimos - primeros) / primeros) * 100;
+
+  setPorcentajeCambio(cambio);
+};
+
 
   /* =================== GUARDAR PAGO =================== */
   const guardarPago = async () => {
@@ -106,24 +193,18 @@ export default function Facturacion() {
 
     const convertirFechaAISO = (fecha: string) => {
       const [mes, dia, año] = fecha.split("/");
-      return `${año}-${mes}-${dia}`; // yyyy-MM-dd
+      return `${año}-${mes}-${dia}`;
     };
-
 
     const pagoDTO = {
       paciente_id: pacienteSeleccionado.paciente_id,
       monto: parseFloat(monto),
-      metodo: metodo,
+      metodo,
       fecha: convertirFechaAISO(fechaPago)
     };
 
     try {
       const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        Alert.alert("Error", "Usuario no autenticado");
-        router.replace("/(auth)/LoginSreen");
-        return;
-      }
 
       const res = await fetch("http://192.168.100.12:8080/api/savePago", {
         method: "POST",
@@ -140,14 +221,12 @@ export default function Facturacion() {
         setMonto("");
         setMetodo("");
         setPacienteSeleccionado(null);
-
       } else {
         const error = await res.text();
         Alert.alert("Error", error);
       }
 
     } catch (err) {
-      console.error("Error guardando pago:", err);
       Alert.alert("Error", "No se pudo guardar el pago");
     }
   };
@@ -162,19 +241,9 @@ export default function Facturacion() {
           <TouchableOpacity
             key={label}
             onPress={() => setTab(label)}
-            style={[
-              styles.tab,
-              tab === label && styles.tabSelected
-            ]}
+            style={[styles.tab, tab === label && styles.tabSelected]}
           >
-            <Text
-              style={[
-                styles.tabText,
-                tab === label && styles.tabTextSelected
-              ]}
-            >
-              {label}
-            </Text>
+            <Text style={[styles.tabText, tab === label && styles.tabTextSelected]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -191,36 +260,67 @@ export default function Facturacion() {
       </View>
 
       <ScrollView style={{ flex: 1 }}>
+
         {/* Tarjeta Tendencia */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Tendencia de Ingresos</Text>
+
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>+15%</Text>
+              <Text style={styles.badgeText}>
+                {porcentajeCambio > 0 ? "+" : ""}
+                {porcentajeCambio.toFixed(1)}%
+              </Text>
             </View>
           </View>
 
           <Text style={styles.subtitle}>Últimos 30 días</Text>
 
-          <View style={styles.graphPlaceholder}>
-            <Text style={{ color: "#A0A0A0" }}>(Gráfica aquí)</Text>
+          {/* === GRÁFICA REAL === */}
+          <View style={{ marginTop: 16 }}>
+            <LineChart
+              data={{
+                labels: ["1", "5", "10", "15", "20", "25", "30"],
+                datasets: [
+                  {
+                    data: ingresos30dias,
+                    color: () => "rgba(45,108,246,1)",
+                    strokeWidth: 3,
+                  },
+                ],
+              }}
+              width={screenWidth - 50}
+              height={180}
+              chartConfig={{
+                backgroundColor: "#fff",
+                backgroundGradientFrom: "#fff",
+                backgroundGradientTo: "#fff",
+                decimalPlaces: 0,
+                color: () => "rgba(45,108,246,0.6)",
+                labelColor: () => "#A0A0A0",
+                propsForDots: { r: "3", fill: "#2D6CF6" },
+                propsForBackgroundLines: {
+                  strokeDasharray: "",
+                  stroke: "#E3E8FF"
+                },
+              }}
+              withInnerLines
+              bezier
+              style={{ borderRadius: 16 }}
+            />
           </View>
         </View>
 
         {/* Historial */}
         <Text style={styles.sectionTitle}>Historial de Pagos</Text>
 
-        {[ // Ejemplo temporal
-          { paciente: "Ana Gómez", fecha: "15 Nov, 2024", tipo: "Efectivo", monto: "+$150.00" },
-          { paciente: "Roberto Diaz", fecha: "12 Nov, 2024", tipo: "Transferencia", monto: "+$150.00" },
-          { paciente: "Lucía Fernandez", fecha: "10 Nov, 2024", tipo: "Efectivo", monto: "+$100.00" }
-        ].map((item, idx) => (
+        {pagosPacientes.slice(-10).reverse().map((p, idx) => (
           <View key={idx} style={styles.paymentCard}>
             <View>
-              <Text style={styles.paymentName}>Pago de {item.paciente}</Text>
-              <Text style={styles.paymentSub}>{item.fecha} - {item.tipo}</Text>
+              <Text style={styles.paymentName}>Pago de {p.nombre}{p.apellido}</Text>
+              <Text style={styles.paymentSub}>{p.fecha} - {p.metodo}</Text>
             </View>
-            <Text style={styles.paymentAmount}>{item.monto}</Text>
+            <Text style={styles.paymentAmount}>+${p.monto}.00</Text>
           </View>
         ))}
 
@@ -258,8 +358,7 @@ export default function Facturacion() {
               <Text style={styles.selectBoxText}>
                 {pacienteSeleccionado
                   ? pacienteSeleccionado.nombre + " " + pacienteSeleccionado.apellido
-                  : "Seleccionar paciente"
-                }
+                  : "Seleccionar paciente"}
               </Text>
               <Text style={styles.arrowIcon}>⌄</Text>
             </TouchableOpacity>
@@ -312,17 +411,11 @@ export default function Facturacion() {
               {["Efectivo", "Transferencia", "Tarjeta"].map((m) => (
                 <TouchableOpacity
                   key={m}
-                  style={[
-                    styles.methodBtn,
-                    metodo === m && { backgroundColor: "#2D6CF6" }
-                  ]}
+                  style={[styles.methodBtn, metodo === m && { backgroundColor: "#2D6CF6" }]}
                   onPress={() => setMetodo(m)}
                 >
                   <Text
-                    style={[
-                      styles.methodBtnText,
-                      metodo === m && { color: "white" }
-                    ]}
+                    style={[styles.methodBtnText, metodo === m && { color: "white" }]}
                   >
                     {m}
                   </Text>
@@ -355,7 +448,6 @@ export default function Facturacion() {
 }
 
 /* ============================= ESTILOS ============================= */
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F6FA", paddingTop: 45 },
 
@@ -397,15 +489,6 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#10B981", fontWeight: "700" },
   subtitle: { marginTop: 4, color: "#707070" },
-
-  graphPlaceholder: {
-    height: 140,
-    backgroundColor: "#F0F4FF",
-    borderRadius: 12,
-    marginTop: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
 
   sectionTitle: {
     fontSize: 18,
@@ -458,7 +541,6 @@ const styles = StyleSheet.create({
 
   label: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
 
-  /* SELECT PACIENTE */
   selectBox: {
     backgroundColor: "#FFFFFF",
     paddingVertical: 14,
@@ -486,11 +568,6 @@ const styles = StyleSheet.create({
     borderColor: "#D6D6D6",
     marginBottom: 12,
     overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
   },
   dropdownItem: {
     paddingVertical: 12,
@@ -503,7 +580,6 @@ const styles = StyleSheet.create({
     color: "#333",
   },
 
-  /* Inputs */
   row: { flexDirection: "row", gap: 10 },
   input: {
     backgroundColor: "#FFFFFF",
@@ -514,7 +590,6 @@ const styles = StyleSheet.create({
     borderColor: "#D6D6D6",
   },
 
-  /* Métodos de pago */
   paymentMethods: {
     flexDirection: "row",
     gap: 10,
@@ -529,7 +604,6 @@ const styles = StyleSheet.create({
   },
   methodBtnText: { fontWeight: "700", color: "#2D6CF6" },
 
-  /* Footer */
   modalFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
