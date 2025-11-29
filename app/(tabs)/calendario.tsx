@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { DateTime } from "luxon";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -37,6 +38,16 @@ export default function CitasScreen() {
       setLoading(false);
     }
   };
+
+    const formatearHora = (horaString: string) => {
+      try {
+        // Si viene como "16:39:51" → la convertimos a 16:39
+        const hora = DateTime.fromFormat(horaString.substring(0, 5), "HH:mm");
+        return hora.toFormat("h:mm a").toLowerCase(); // "4:39 pm"
+      } catch {
+        return horaString;
+      }
+    };
 
   return (
     <View style={styles.container}>
@@ -102,7 +113,7 @@ export default function CitasScreen() {
                     {item.nombre} {item.apellido}
                   </Text>
                   <Text style={styles.cardTime}>
-                    {item.hora_inicio} - {item.hora_final}
+                     {formatearHora(item.hora_inicio)} - {formatearHora(item.hora_final)}
                   </Text>
                 </View>
                 <Ionicons name="ellipsis-vertical" size={20} color="#555" />
