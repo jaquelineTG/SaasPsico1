@@ -17,7 +17,7 @@ export default function EditarPerfil() {
       {/* Avatar */}
       <View style={styles.avatarBox}>
         <Image
-          source={require("@/assets/avatar.png")}
+         source={require("../assets/avatar.png")} 
           style={styles.avatar}
         />
 

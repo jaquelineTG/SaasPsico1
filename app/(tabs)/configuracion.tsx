@@ -20,7 +20,7 @@ export default function Configuracion() {
       
       <View style={styles.card}>
         <Image 
-          source={require("@/assets/avatar.png")} 
+          source={require("../../assets/avatar.png")} 
           style={styles.avatar}
         />
 

@@ -9,6 +9,7 @@ export default function DashBoardScreen() {
   const router = useRouter();
   const [PacientesyHorario, setPacientesyHorario] = useState<any[]>([]);
   const [PacientesProximos, setPacientesProximos] = useState<any[]>([]);
+  const [Pacientes, setPacientes] = useState<any[]>([]);
   const [noCitasSemanal, setNoCitasSemanal] = useState(0);
 
   useEffect(() => {
@@ -134,6 +135,40 @@ export default function DashBoardScreen() {
     }
   };
 
+    useEffect(() => {
+    const getPatients = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          Alert.alert('Error', 'Usuario no autenticado');
+          router.replace('/(auth)/LoginSreen');
+          return;
+        }
+
+        const response = await fetch('http://192.168.100.12:8080/api/getPacientes', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al obtener pacientes de fechas proximas');
+        }
+
+        const data = await response.json();
+        console.log('Pacientes:', data); 
+        setPacientes(data);
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'No se pudo obtener la lista de pacientes proximos');
+      }
+    };
+
+    getPatients();
+  }, []);
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -146,10 +181,10 @@ export default function DashBoardScreen() {
 
 
       {/* Próximas Citas */}
-      <Text style={styles.sectionTitle}>Próximas Citas</Text>
+      <Text style={styles.sectionTitle}>Próximas Citas del Dia</Text>
       <ScrollView contentContainerStyle={styles.listContainer}>
         {PacientesyHorario.map((p: any) => (
-          <View style={styles.card}>
+          <View key={p.id} style={styles.card}>
             <Ionicons name="calendar" size={20} color="#007bff" />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.cardTitle}>Consulta {p.tipo_terapia} con {p.nombre}</Text>
@@ -190,6 +225,10 @@ export default function DashBoardScreen() {
           <Text style={styles.metricLabel}>Ingresos</Text>
           <Text style={styles.metricValue}>$1,200</Text>
         </View>
+      </View>
+      <View style={[styles.metricBox, { backgroundColor: "#e3d8fcff" }]}>
+        <Text style={styles.metricLabel}>Pacientes Activos</Text>
+        <Text style={styles.metricValue}>{Pacientes.length}</Text>
       </View>
     </ScrollView>
   );

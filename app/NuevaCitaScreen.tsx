@@ -143,7 +143,7 @@ export default function NuevaCitaScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/calendario")}>
           <Ionicons name="close" size={24} color="#111" />
         </TouchableOpacity>
 

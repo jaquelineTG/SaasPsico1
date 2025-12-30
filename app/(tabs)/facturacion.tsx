@@ -16,6 +16,7 @@ import {
 import { LineChart } from "react-native-chart-kit";
 const screenWidth = Dimensions.get("window").width;
 
+
 /* ====================== TYPE PACIENTE ====================== */
 type Paciente = {
   paciente_id: number;
@@ -35,11 +36,12 @@ type PagoDTO = {
   nombre: string;
   apellido: string;
   monto: number;
-  fecha: string;       // LocalDate → string (formato "yyyy-MM-dd")
-  metodo: string;      // enum del backend, llega como texto
+  fecha: string;       // yyyy-MM-dd
+  metodo: string;
 };
 
 
+/* ======================= COMPONENTE ======================= */
 
 export default function Facturacion() {
 
@@ -47,7 +49,6 @@ export default function Facturacion() {
   const [tab, setTab] = useState("Semana");
   const [modalVisible, setModalVisible] = useState(false);
 
-  /* === ESTADOS DE PAGO === */
   const [metodo, setMetodo] = useState<string>("");
   const [monto, setMonto] = useState<string>("");
 
@@ -68,10 +69,15 @@ export default function Facturacion() {
   const [fechaPago, setFechaPago] = useState(formatFechaMMDD());
 
   /* === PAGOS === */
-  const [pagos, setPagos] = useState([]);
   const [pagosPacientes, setPagosPacientes] = useState<PagoDTO[]>([]);
   const [ingresos30dias, setIngresos30dias] = useState<number[]>([]);
   const [porcentajeCambio, setPorcentajeCambio] = useState<number>(0);
+  const [montoTotalDia, setMontoTotalDia] = useState<number>(0);
+  const [montoTotalSemana, setMontoTotalSemana] = useState<number>(0);
+  const [montoTotalMes, setMontoTotalMes] = useState<number>(0);
+  const [diaSemMes, setDiaSemMes] = useState(["Día", "Semana", "Mes"]);
+
+
 
   /* =================== CARGAR PACIENTES =================== */
   useEffect(() => {
@@ -99,30 +105,9 @@ export default function Facturacion() {
     fetchPatients();
   }, []);
 
+
+
   /* =================== CARGAR PAGOS =================== */
-  useEffect(() => {
-    const fetchPagos = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-
-        const res = await fetch("http://192.168.100.12:8080/api/getPagos", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-
-        const data = await res.json();
-        setPagos(data);
-
-        procesarGrafica(data);
-
-      } catch (err) {
-        console.log("Error cargando pagos: ", err);
-      }
-    };
-
-    fetchPagos();
-  }, []);
-
-    /* =================== CARGAR PAGOSPacientes =================== */
   useEffect(() => {
     const fetchPagos = async () => {
       try {
@@ -133,8 +118,14 @@ export default function Facturacion() {
         });
 
         const data = await res.json();
-        setPagosPacientes(data);
 
+        if (!Array.isArray(data)) {
+          setPagosPacientes([]);
+          return;
+        }
+
+        setPagosPacientes(data);
+        procesarGrafica(data);
 
       } catch (err) {
         console.log("Error cargando pagos: ", err);
@@ -144,33 +135,64 @@ export default function Facturacion() {
     fetchPagos();
   }, []);
 
-  /* ============= PROCESAR GRÁFICA ============= */
+
+
+  /* =================== PROCESAR GRÁFICA =================== */
   const procesarGrafica = (data: PagoDTO[]) => {
-  const hoy = new Date();
-  const hace30 = new Date();
-  hace30.setDate(hoy.getDate() - 30);
 
-  const ingresos = Array(30).fill(0);
+    if (!Array.isArray(data)) {
+      setIngresos30dias(Array(30).fill(0));
+      return;
+    }
 
-  data.forEach((pago: PagoDTO) => {
-    const fecha = new Date(pago.fecha);
-    if (fecha >= hace30 && fecha <= hoy) {
+    const hoy = new Date();
+    const hace30 = new Date();
+    hace30.setDate(hoy.getDate() - 30);
+
+    const ingresos = Array(30).fill(0);
+
+    data.forEach((pago) => {
+
+      // VALIDAR FECHA
+      const fecha = new Date(pago.fecha);
+      if (isNaN(fecha.getTime())) {
+        console.log("Fecha inválida:", pago.fecha);
+        return;
+      }
+
+      // VALIDAR MONTO
+      const monto = Number(pago.monto);
+      if (!isFinite(monto)) {
+        console.log("Monto inválido:", pago.monto);
+        return;
+      }
+
+      // DIFERENCIA EN DÍAS
       const diff = Math.floor(
         (fecha.getTime() - hace30.getTime()) / (1000 * 60 * 60 * 24)
       );
-      ingresos[diff] += pago.monto;
-    }
-  });
 
-  setIngresos30dias(ingresos);
+      if (diff >= 0 && diff < 30) {
+        ingresos[diff] += monto;
+      }
+    });
 
-  const mitad = Math.floor(ingresos.length / 2);
-  const primeros = ingresos.slice(0, mitad).reduce((a, b) => a + b, 0);
-  const ultimos = ingresos.slice(mitad).reduce((a, b) => a + b, 0);
-  const cambio = primeros === 0 ? 100 : ((ultimos - primeros) / primeros) * 100;
+    // LIMPIAR VALORES INVALIDOS
+    const limpio = ingresos.map(v =>
+      v && isFinite(v) ? v : 0
+    );
 
-  setPorcentajeCambio(cambio);
-};
+    setIngresos30dias(limpio);
+
+    // PORCENTAJE CAMBIO
+    const mitad = Math.floor(limpio.length / 2);
+    const primeros = limpio.slice(0, mitad).reduce((a, b) => a + b, 0);
+    const ultimos = limpio.slice(mitad).reduce((a, b) => a + b, 0);
+    const cambio = primeros === 0 ? 100 : ((ultimos - primeros) / primeros) * 100;
+
+    setPorcentajeCambio(cambio);
+  };
+
 
 
   /* =================== GUARDAR PAGO =================== */
@@ -231,13 +253,94 @@ export default function Facturacion() {
     }
   };
 
+  //Recibido del dia/semana/mes
+  useEffect(() => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const semana = new Date(hoy);
+    semana.setDate(hoy.getDate() + 7);
+
+    const mes = new Date(hoy);
+    mes.setDate(hoy.getDate() + 30);
+
+    // PAGOS DE HOY
+    const pagosDia = pagosPacientes.filter(pago => {
+      const fechaPago = new Date(pago.fecha);
+      return (
+        fechaPago.getFullYear() === hoy.getFullYear() &&
+        fechaPago.getMonth() === hoy.getMonth() &&
+        fechaPago.getDate() === hoy.getDate()
+      );
+    });
+
+    // PAGOS DE LA SEMANA
+    const pagosSemana = pagosPacientes.filter(pago => {
+      const fechaPago = new Date(pago.fecha);
+      fechaPago.setHours(0, 0, 0, 0);
+      return fechaPago >= hoy && fechaPago <= semana;
+    });
+
+    // PAGOS DEL MES
+    const pagosMes = pagosPacientes.filter(pago => {
+      const fechaPago = new Date(pago.fecha);
+      fechaPago.setHours(0, 0, 0, 0);
+      return fechaPago >= hoy && fechaPago <= mes;
+    });
+
+
+    let montoDia = 0
+    let montoSemana = 0
+    let montoMes = 0
+    for (let index = 0; index < pagosDia.length; index++) {
+
+      montoDia = pagosDia[index].monto + montoDia;
+
+    }
+    for (let index = 0; index < pagosDia.length; index++) {
+
+      montoSemana = pagosSemana[index].monto + montoSemana;
+
+    }
+    for (let index = 0; index < pagosDia.length; index++) {
+
+      montoMes = pagosMes[index].monto + montoMes;
+
+    }
+
+    setMontoTotalDia(montoDia)
+    setMontoTotalSemana(montoSemana)
+    setMontoTotalMes(montoMes)
+
+  }, [pagosPacientes]);
+
+  let titulo = "";
+  let montoMostrado = 0;
+
+  if (tab === "Día") {
+    titulo = "Recibido (Día)";
+    montoMostrado = montoTotalDia;
+  } else if (tab === "Semana") {
+    titulo = "Recibido (Semana)";
+    montoMostrado = montoTotalSemana;
+  } else {
+    titulo = "Recibido (Mes)";
+    montoMostrado = montoTotalMes;
+  }
+
+
+
+
+
+
+
   /* ======================= UI ======================= */
   return (
     <View style={styles.container}>
 
       {/* Tabs */}
       <View style={styles.tabs}>
-        {["Día", "Semana", "Mes"].map((label) => (
+        {diaSemMes.map((label) => (
           <TouchableOpacity
             key={label}
             onPress={() => setTab(label)}
@@ -261,6 +364,11 @@ export default function Facturacion() {
 
       <ScrollView style={{ flex: 1 }}>
 
+        <View style={styles.card1}>
+          <Text style={styles.label1}>{titulo}</Text>
+          <Text style={styles.amount}>{montoMostrado}</Text>
+        </View>
+
         {/* Tarjeta Tendencia */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -276,14 +384,17 @@ export default function Facturacion() {
 
           <Text style={styles.subtitle}>Últimos 30 días</Text>
 
-          {/* === GRÁFICA REAL === */}
+          {/* GRAFICA */}
           <View style={{ marginTop: 16 }}>
             <LineChart
               data={{
                 labels: ["1", "5", "10", "15", "20", "25", "30"],
                 datasets: [
                   {
-                    data: ingresos30dias,
+                    data:
+                      ingresos30dias.length === 30
+                        ? ingresos30dias
+                        : Array(30).fill(0),
                     color: () => "rgba(45,108,246,1)",
                     strokeWidth: 3,
                   },
@@ -317,7 +428,7 @@ export default function Facturacion() {
         {pagosPacientes.slice(-10).reverse().map((p, idx) => (
           <View key={idx} style={styles.paymentCard}>
             <View>
-              <Text style={styles.paymentName}>Pago de {p.nombre}{p.apellido}</Text>
+              <Text style={styles.paymentName}>Pago de {p.nombre} {p.apellido}</Text>
               <Text style={styles.paymentSub}>{p.fecha} - {p.metodo}</Text>
             </View>
             <Text style={styles.paymentAmount}>+${p.monto}.00</Text>
@@ -336,7 +447,8 @@ export default function Facturacion() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* ======= MODAL ======= */}
+
+      {/* ======================= MODAL ======================= */}
       <Modal animationType="slide" transparent visible={modalVisible}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -380,7 +492,7 @@ export default function Facturacion() {
               </View>
             )}
 
-            {/* Monto - Fecha */}
+            {/* Monto + Fecha */}
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Monto</Text>
@@ -443,11 +555,14 @@ export default function Facturacion() {
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
 
+
 /* ============================= ESTILOS ============================= */
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F6FA", paddingTop: 45 },
 
@@ -627,5 +742,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#2D6CF6",
     alignItems: "center"
   },
-  saveText: { color: "#fff", fontSize: 16, fontWeight: "700" }
+  saveText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  card1: {
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 12,
+    width: 180,
+    margin: 15,
+
+    // sombra iOS
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+
+    // sombra Android
+    elevation: 4,
+  },
+  label1: {
+    fontSize: 13,
+    color: "#6B7280", // gris suave
+    marginBottom: 6,
+  },
+  amount: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#111827", // negro elegante
+  },
 });

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { DateTime } from "luxon";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,10 +14,19 @@ import {
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
+ type Cita = {
+  paciente_id: number;
+  nombre: string;
+  apellido: string;
+  hora_inicio: string; // "HH:mm"
+  hora_final: string;  // "HH:mm"
+};
+
+
 export default function CitasScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState("");
-  const [citas, setCitas] = useState<any>([]);
+  const [citas, setCitas] = useState<Cita[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchCitasPorDia = async (fecha: string) => {
@@ -30,6 +39,7 @@ export default function CitasScreen() {
 
       if (!res.ok) throw new Error("Error al obtener citas");
       const data = await res.json();
+
       setCitas(data);
     } catch (err) {
       console.error(err);
@@ -39,15 +49,33 @@ export default function CitasScreen() {
     }
   };
 
-    const formatearHora = (horaString: string) => {
-      try {
-        // Si viene como "16:39:51" → la convertimos a 16:39
-        const hora = DateTime.fromFormat(horaString.substring(0, 5), "HH:mm");
-        return hora.toFormat("h:mm a").toLowerCase(); // "4:39 pm"
-      } catch {
-        return horaString;
-      }
-    };
+  const formatearHora = (horaString: string) => {
+    try {
+      // Si viene como "16:39:51" → la convertimos a 16:39
+      const hora = DateTime.fromFormat(horaString.substring(0, 5), "HH:mm");
+      return hora.toFormat("h:mm a").toLowerCase(); // "4:39 pm"
+    } catch {
+      return horaString;
+    }
+  };
+  const today = new Date().toLocaleDateString("en-CA");
+
+  useEffect(() => {
+  setSelectedDate(today);
+ fetchCitasPorDia(today);
+}, []);
+
+
+  const ahora = new Date();
+  const horaActual = ahora
+    .toTimeString()
+    .slice(0, 5); // "HH:mm"
+
+  const citasFuturas = citas.filter(
+    (cita) => cita.hora_final > horaActual
+  );
+
+
 
   return (
     <View style={styles.container}>
@@ -60,37 +88,38 @@ export default function CitasScreen() {
       </View>
 
       {/* CALENDARIO */}
-      <Calendar
-        onDayPress={(day) => {
-          setSelectedDate(day.dateString);
-          fetchCitasPorDia(day.dateString);
-        }}
-        markedDates={{
-          [selectedDate]: {
-            selected: true,
-            selectedColor: "#4e73df",
-            selectedTextColor: "#fff",
-          },
-        }}
+        <Calendar
+          current={today}
+          onDayPress={(day) => {
+            setSelectedDate(day.dateString);
+            fetchCitasPorDia(day.dateString);
+          }}
+          markedDates={{
+            [selectedDate]: {
+              selected: true,
+              selectedColor: "#4e73df",
+              selectedTextColor: "#fff",
+            },
+          }}
 
-        onMonthChange={() => {
-          // Cuando cambie el mes, limpia la lista de citas
-          setCitas([]);
-          setSelectedDate("");
-        }}
-        monthFormat={"MMMM yyyy"}
-        theme={{
-          todayTextColor: "#4e73df",
-          arrowColor: "#4e73df",
-          textMonthFontWeight: "bold",
-          textDayFontWeight: "bold",
-          textMonthFontSize: 18,
-          selectedDayBackgroundColor: "#4e73df",
-          selectedDayTextColor: "#fff",
-          dotColor: "#4e73df",
-          selectedDotColor: "#fff",
-        }}
-      />
+          onMonthChange={() => {
+            // Cuando cambie el mes, limpia la lista de citas
+            setCitas([]);
+            setSelectedDate("");
+          }}
+          monthFormat={"MMMM yyyy"}
+          theme={{
+            todayTextColor: "#4e73df",
+            arrowColor: "#4e73df",
+            textMonthFontWeight: "bold",
+            textDayFontWeight: "bold",
+            textMonthFontSize: 18,
+            selectedDayBackgroundColor: "#4e73df",
+            selectedDayTextColor: "#fff",
+            dotColor: "#4e73df",
+            selectedDotColor: "#fff",
+          }}
+        />
 
       {/* SUBTÍTULO */}
       <Text style={styles.subtitle}>Próximas citas</Text>
@@ -99,12 +128,24 @@ export default function CitasScreen() {
       {loading ? (
         <ActivityIndicator size="large" color="#4e73df" style={{ marginTop: 20 }} />
       ) : (
+
         <FlatList
-          data={citas}
+          data={citasFuturas}
           keyExtractor={(item) => item.paciente_id.toString()}
           renderItem={({ item, index }) => {
+
             const colores = ["#e0e7ff", "#dbeafe", "#dcfce7"];
             const color = colores[index % colores.length];
+            const ahora = new Date();
+
+            const hora = ahora.getHours().toString().padStart(2, "0");
+            const minutos = ahora.getMinutes().toString().padStart(2, "0");
+
+            const horaActual = `${hora}:${minutos}`;
+            if (item.hora_final > horaActual) {
+
+
+            }
             return (
               <View style={[styles.card, { backgroundColor: color }]}>
                 <Ionicons name="calendar-outline" size={22} color="#1f2937" />
@@ -113,7 +154,7 @@ export default function CitasScreen() {
                     {item.nombre} {item.apellido}
                   </Text>
                   <Text style={styles.cardTime}>
-                     {formatearHora(item.hora_inicio)} - {formatearHora(item.hora_final)}
+                    {formatearHora(item.hora_inicio)} - {formatearHora(item.hora_final)}
                   </Text>
                 </View>
                 <Ionicons name="ellipsis-vertical" size={20} color="#555" />
