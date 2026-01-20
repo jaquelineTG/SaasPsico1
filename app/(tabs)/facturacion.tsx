@@ -77,6 +77,8 @@ export default function Facturacion() {
   const [montoTotalMes, setMontoTotalMes] = useState<number>(0);
   const [diaSemMes, setDiaSemMes] = useState(["Día", "Semana", "Mes"]);
 
+  const [chartData, setChartData] = useState<number[]>([]);
+  const [chartLabels, setChartLabels] = useState<string[]>([]);
 
 
   /* =================== CARGAR PACIENTES =================== */
@@ -329,6 +331,71 @@ export default function Facturacion() {
   }
 
 
+  const procesarGraficaPorTab = (data: PagoDTO[], tabActual: string) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    /* ================= DÍA (por horas) ================= */
+    if (tabActual === "Día") {
+      const horas = Array(24).fill(0);
+
+      data.forEach(p => {
+        const fecha = new Date(p.fecha);
+        if (
+          fecha.getFullYear() === hoy.getFullYear() &&
+          fecha.getMonth() === hoy.getMonth() &&
+          fecha.getDate() === hoy.getDate()
+        ) {
+          const hora = fecha.getHours();
+          horas[hora] += Number(p.monto);
+        }
+      });
+
+      setChartLabels(["0", "4", "8", "12", "16", "20", "23"]);
+      setChartData(horas);
+    }
+
+    /* ================= SEMANA (L–D) ================= */
+    if (tabActual === "Semana") {
+      const semana = Array(7).fill(0);
+
+      data.forEach(p => {
+        const fecha = new Date(p.fecha);
+        const diaSemana = fecha.getDay(); // 0 = domingo
+        semana[diaSemana] += Number(p.monto);
+      });
+
+      setChartLabels(["D", "L", "M", "X", "J", "V", "S"]);
+      setChartData(semana);
+    }
+
+    /* ================= MES (últimos 30 días) ================= */
+    if (tabActual === "Mes") {
+      const hace30 = new Date();
+      hace30.setDate(hoy.getDate() - 30);
+
+      const ingresos = Array(30).fill(0);
+
+      data.forEach(p => {
+        const fecha = new Date(p.fecha);
+        const diff = Math.floor(
+          (fecha.getTime() - hace30.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (diff >= 0 && diff < 30) {
+          ingresos[diff] += Number(p.monto);
+        }
+      });
+
+      setChartLabels(["1", "5", "10", "15", "20", "25", "30"]);
+      setChartData(ingresos);
+    }
+  };
+  useEffect(() => {
+    if (pagosPacientes.length > 0) {
+      procesarGraficaPorTab(pagosPacientes, tab);
+    }
+  }, [tab, pagosPacientes]);
 
 
 
@@ -388,13 +455,10 @@ export default function Facturacion() {
           <View style={{ marginTop: 16 }}>
             <LineChart
               data={{
-                labels: ["1", "5", "10", "15", "20", "25", "30"],
+                labels: chartLabels,
                 datasets: [
                   {
-                    data:
-                      ingresos30dias.length === 30
-                        ? ingresos30dias
-                        : Array(30).fill(0),
+                    data: chartData.length ? chartData : [0],
                     color: () => "rgba(45,108,246,1)",
                     strokeWidth: 3,
                   },
@@ -415,10 +479,10 @@ export default function Facturacion() {
                   stroke: "#E3E8FF"
                 },
               }}
-              withInnerLines
               bezier
               style={{ borderRadius: 16 }}
             />
+
           </View>
         </View>
 
