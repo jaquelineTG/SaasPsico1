@@ -89,7 +89,7 @@ const onLogin = async () => {
             />
           </View>
 
-          <TouchableOpacity  onPress={() => router.push('/ForgotPasswordScreen')} style={{ alignSelf: 'flex-end', marginTop: 6 }} >
+          <TouchableOpacity  onPress={() => router.push('/(auth)/ForgotPasswordScreen')} style={{ alignSelf: 'flex-end', marginTop: 6 }} >
             <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
